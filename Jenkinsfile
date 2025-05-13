@@ -2,15 +2,35 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'harinitha/signup-page'
-        IMAGE_TAG = 'latest'
+        IMAGE_NAME = "harinitha/signup-page"
+        IMAGE_TAG = "latest"
+        DOCKER_USER = "harinitha"  // Hardcoded Docker username
+        DOCKER_PASS = "21-Mar-05"      // Hardcoded Docker password
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Assumes Jenkins is connected to your Git repo
                 checkout scm
+            }
+        }
+
+        stage('Start Minikube') {
+            steps {
+                script {
+                    sh 'minikube start --driver=docker'
+                }
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                script {
+                    // Hardcoded Docker login
+                    sh """
+                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    """
+                }
             }
         }
 
@@ -22,25 +42,32 @@ pipeline {
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Push to Docker Registry') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: '21-Mar-05')]) {
-                    script {
-                        sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-                        sh 'docker push $IMAGE_NAME:$IMAGE_TAG'
-                    }
+                script {
+                    sh """
+                    docker push $IMAGE_NAME:$IMAGE_TAG
+                    docker logout
+                    """
                 }
             }
         }
 
-        stage('Deploy Container') {
+        stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Optional: kill old container if running
-                    sh 'docker rm -f signup-container || true'
-                    sh 'docker run -d --name signup-container -p 8080:80 $IMAGE_NAME:$IMAGE_TAG'
+                    sh 'kubectl apply -f deployment.yaml'
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Deployment successful!"
+        }
+        failure {
+            echo "Something went wrong."
         }
     }
 }
