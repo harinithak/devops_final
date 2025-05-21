@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: login-page-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: login-page
+  template:
+    metadata:
+      labels:
+        app: login-page
+    spec:
+      containers:
+      - name: login-page-container
+        image: harinitha/final
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: login-page-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: login-page
+  ports:
+  - port: 80
+    targetPort: 80
